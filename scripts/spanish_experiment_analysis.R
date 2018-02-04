@@ -10,6 +10,7 @@
 
 library(stringr)
 library(car)
+library(lavaan)
 library(tidyverse)
 
 ## Load in data:
@@ -129,6 +130,11 @@ allstim$PC1 <- allcorrs_pca$x[, 1]
 
 allstim$PC1 <- allstim$PC1 * -1
 
+## Write to file:
+
+write_csv(allstim, 'spanish_allstims_summary_PCA.csv')
+
+
 
 ##------------------------------------------------------------------
 ## Main novelty hypothesis and other condition variables:
@@ -189,6 +195,39 @@ summary(xmdl.noquadraticnovelty)$r.squared - summary(xmdl.nonovelty)$r.squared	#
 summary(xmdl.nohuman)$r.squared
 summary(xmdl.full)$r.squared - summary(xmdl.nohuman)$r.squared	# 3%
 
+
+
+
+##------------------------------------------------------------------
+## Analysis of humanness:
+##------------------------------------------------------------------
+
+## Get matrix:
+
+myM <- cbind(as.matrix(select(allstim, computer)),
+	18 - as.matrix(select(allstim, computer)))
+colnames(myM) <- c('computer', 'human')
+
+## Extract only novelty = 1 & 2:
+
+only_these <- allstim$novelty_c < 1	# (1.1355 is the value for novelty = 3 after centering)
+myM <- myM[only_these, ]
+
+## Change order (modeling proportion of human judgments):
+
+myM <- myM[, c(2, 1)]
+
+## Extract human or not human vector:
+
+human_yesno <- pull(allstim, human)[only_these]
+
+## Extract novelty as control variable:
+
+novelty_c <- pull(allstim, novelty_c)[only_these]
+
+## Analyze using logistic regression:
+
+summary(glm(myM ~ human_yesno + novelty_c, family = 'binomial'))
 
 
 ##------------------------------------------------------------------

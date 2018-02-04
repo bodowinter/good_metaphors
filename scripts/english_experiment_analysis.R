@@ -10,7 +10,6 @@
 
 library(lavaan)
 library(stringr)
-library(car)
 library(tidyverse)
 library(irr)
 
@@ -189,6 +188,10 @@ myFormula <- '
 myFit <- cfa(myFormula, data = stims)
 summary(myFit)		# also significantly correlated
 
+## Write to file:
+
+write_csv(allstim, 'english_allstims_summary_PCA.csv')
+
 
 
 ##------------------------------------------------------------------
@@ -230,8 +233,8 @@ allcorrs <- allcorrs[, 1:3]
 
 ## Rename so the names appear nicely on the plot:
 
-allcorrs <- rename(allcorrs, Sensibility = YesProp,
-	Quality = quality,
+allcorrs <- rename(allcorrs, Sense = YesProp,
+	Appreciation = quality,
 	Humanness = HumanProp)
 
 ## Get variable names for plotting:
@@ -357,10 +360,6 @@ anova(xmdl.noquadraticnovelty, xmdl.full, test = 'F')
 
 anova(xmdl.nonovelty, xmdl.noquadraticnovelty, test = 'F')
 
-## Perform F-test of linear effect:
-
-anova(xmdl.nonovelty, xmdl.noquadraticnovelty, test = 'F')
-
 ## Perform F-tests of human and article:
 
 anova(xmdl.nohuman, xmdl.full, test = 'F')
@@ -375,6 +374,40 @@ summary(xmdl.nonovelty)$r.squared
 summary(xmdl.noquadraticnovelty)$r.squared - summary(xmdl.nonovelty)$r.squared	# 46%
 summary(xmdl.nohuman)$r.squared
 summary(xmdl.full)$r.squared - summary(xmdl.nohuman)$r.squared	# 3%
+
+
+
+##------------------------------------------------------------------
+## Analysis of humanness:
+##------------------------------------------------------------------
+
+## Get matrix:
+
+myM <- cbind(as.matrix(select(stims, computer)),
+	21 - as.matrix(select(stims, computer)))
+colnames(myM) <- c('computer', 'human')
+
+## Extract only novelty = 1 & 2:
+
+only_these <- stims$novelty_c < 1	# (1.1355 is the value for novelty = 3 after centering)
+myM <- myM[only_these, ]
+
+## Change order (modeling proportion of human judgments):
+
+myM <- myM[, c(2, 1)]
+
+## Extract human or not human vector:
+
+human_yesno <- pull(stims, human)[only_these]
+
+## Extract novelty as control variable:
+
+novelty_c <- pull(stims, novelty_c)[only_these]
+
+## Analyze using logistic regression:
+
+summary(glm(myM ~ human_yesno + novelty_c, family = 'binomial'))
+
 
 
 
@@ -601,4 +634,9 @@ with(stims,
 	points(x = concAsym, y = PC1, pch = 21,
 	bg = rgb(0, 0, 0, 0.6), col = 'black', cex = 1.35))
 box(lwd = 2)
+
+
+
+
+
 

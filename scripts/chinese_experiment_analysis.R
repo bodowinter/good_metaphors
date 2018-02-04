@@ -9,8 +9,6 @@
 ## Load in packages:
 
 library(stringr)
-library(car)
-library(MuMIn)
 library(tidyverse)
 
 ## Load in data:
@@ -31,6 +29,10 @@ chin <- select(chin,
 	Q4RESP, Q4RT,
 	Stimuli)		# NO HANDEDNESS INFO
 
+## Get rid of stimulus '睡眠是一片汪洋大海。' because it appeared twice:
+
+chin <- filter(chin, Stimuli != '睡眠是一片汪洋大海。')
+
 
 ##------------------------------------------------------------------
 ## Experiment analysis, correlation of Q1, Q3 and Q4 across stims:
@@ -46,7 +48,7 @@ Q1tab <- Q1tab %>% spread(Q1RESP, n)
 ## Get proportions of makes sense question, Q1:
 
 Q1tab <- mutate(Q1tab,
-	YesProp = Yes / 21)
+	YesProp = Yes / length(unique(chin$Subject)))
 
 ## Get average Q3 (quality ratings):
 
@@ -60,7 +62,7 @@ Q4tab <- with(chin, table(Stimuli, Q4RESP))
 Q4tab <- tibble(no_human = as.vector(Q4tab[, 1]),
 	human = as.vector(Q4tab[, 2]))
 Q4tab <- mutate(Q4tab,
-	HumanProp = human / 22)	
+	HumanProp = human / length(unique(chin$Subject)))	
 
 ## Get average RTs:
 
@@ -120,6 +122,10 @@ round(allcorrs_pca$rotation, 1)
 ## Extract first component:
 
 allstim$PC1 <- allcorrs_pca$x[, 1]
+
+## Write to file:
+
+write_csv(allstim, 'chinese_allstims_summary_PCA.csv')
 
 
 
@@ -182,6 +188,40 @@ summary(xmdl.noquadraticnovelty)$r.squared - summary(xmdl.nonovelty)$r.squared	#
 summary(xmdl.nohuman)$r.squared
 summary(xmdl.full)$r.squared - summary(xmdl.nohuman)$r.squared	# ~0%
 
+
+
+
+##------------------------------------------------------------------
+## Analysis of humanness:
+##------------------------------------------------------------------
+
+## Get matrix:
+
+myM <- cbind(as.matrix(select(allstim, no_human)),
+	length(unique(chin$Subject)) - as.matrix(select(allstim, no_human)))
+colnames(myM) <- c('computer', 'human')
+
+## Extract only novelty = 1 & 2:
+
+only_these <- allstim$novelty_c < 0.92	# (0.949152542372881is the value for novelty = 3 after centering)
+myM <- myM[only_these, ]
+	# there is only one human value for novelty = 3
+
+## Change order (modeling proportion of human judgments):
+
+myM <- myM[, c(2, 1)]
+
+## Extract human or not human vector:
+
+human_yesno <- pull(allstim, human)[only_these]
+
+## Extract novelty as control variable:
+
+novelty_c <- pull(allstim, novelty_c)[only_these]
+
+## Analyze using logistic regression:
+
+summary(glm(myM ~ human_yesno + novelty_c, family = 'binomial'))
 
 
 
